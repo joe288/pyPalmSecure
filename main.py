@@ -64,36 +64,33 @@ def open():
     random.seed(int(time.time() * 1000) % 1000)
     mask = bytearray(random.getrandbits(8) for _ in range(307200))
 
-    # Suche nach dem USB-Gerät
+    # seach USB-Device
     global dev 
     dev = usb.core.find(idVendor=0x04c5, idProduct=0x1084)
     print(type(dev))
-    # Überprüfen, ob das Gerät gefunden wurde
     if dev is None:
-        raise ValueError("Gerät nicht gefunden")
+        raise ValueError("no device found")
 
-    # Setze die Konfiguration
+    # set Config
     dev.set_configuration()
 
-    data = dev.ctrl_transfer(0xc0, 0xa0, 0, 0, 3)
-    print("Gelesene Daten:", ' '.join(format(byte, '02x') for byte in data))
-    data = dev.ctrl_transfer(0xc0, 0x29, 0, 0, 4)
-    print("Gelesene Daten:", ' '.join(format(byte, '02x') for byte in data))
-    data = dev.ctrl_transfer(0xc0, 0x66, 0, 0, 3)
-    print("Gelesene Daten:", ' '.join(format(byte, '02x') for byte in data))
-    data = dev.ctrl_transfer(0xc0, 0xa3, 0, 0, 4)
-    print("Gelesene Daten:", ' '.join(format(byte, '02x') for byte in data))
+    data = dev.ctrl_transfer(0xc0, 0xa0, 0, 0, 3) #returns a000cb
+    # print("read data:", ' '.join(format(byte, '02x') for byte in data))
+    data = dev.ctrl_transfer(0xc0, 0x29, 0, 0, 4) #returns 29000300 (probably means "flag value is 3")
+    # print("read data:", ' '.join(format(byte, '02x') for byte in data))
+    data = dev.ctrl_transfer(0xc0, 0x66, 0, 0, 3) #returns 660000
+    # print("read data:", ' '.join(format(byte, '02x') for byte in data))
+    data = dev.ctrl_transfer(0xc0, 0xa3, 0, 0, 4) #returns a392cd01
+    # print("read data:", ' '.join(format(byte, '02x') for byte in data))
     
     device_name = deviceName()
     print("PalmSecure: Connected to device ", device_name)
         
-    data = dev.ctrl_transfer(0xc0, 0x29, 1, 4, 4)
-    print("Gelesene Daten:", ' '.join(format(byte, '02x') for byte in data))
+    data = dev.ctrl_transfer(0xc0, 0x29, 1, 4, 4) #returns 29010400 (probably means "flag value is 4")
+    # print("read data:", ' '.join(format(byte, '02x') for byte in data))
     
     # We initialize device's random generator with this method, it seems
-    rand1 = random.randint(0, 0xffff)
-    rand2 = random.randint(0, 0xffff)
-    key = dev.ctrl_transfer(0xc0, 0x35, rand1, rand2, 18 )
+    key = dev.ctrl_transfer(0xc0, 0x35, random.randint(0, 0xffff), random.randint(0, 0xffff), 18 ) #returns 3500 + encryption key
     dev.ctrl_transfer(0xc0, 0x36, 0, 0, 3)
     
     # "encrypt" mask and send it
@@ -102,7 +99,6 @@ def open():
     # XOR mask2 and mask
     for i in range(307200):
         mask2[i] ^= mask[i]
-
 
     res = bulk_send(0x01, mask2)
     print(f"PalmSecure: Wrote {res} bytes to device (should be 307200)")
@@ -125,7 +121,9 @@ def open():
     data = dev.ctrl_transfer(0xc0, 0x27, 0x0a, 0, 8) #returns 270a000000000000
     data = dev.ctrl_transfer(0xc0, 0x27, 0x0b, 0, 8) #returns 270b000000000000
     data = dev.ctrl_transfer(0xc0, 0x27, 0x0c, 0, 8) #returns 270c000000000000
-    
+    print("PalmSecure: init done")
+    return True
+
 def start():
     True
 
