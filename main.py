@@ -2,8 +2,12 @@ import usb.core
 import usb.util
 import random
 import time
+import numpy as np
+import cv2
 
 dev:usb.core.Device
+mask:bytearray
+scan_first:bool 
 
 def bulk_send( endpoint, buf):
         final = 0
@@ -34,6 +38,20 @@ def bulk_send( endpoint, buf):
         
         return final
 
+def bulk_receive(endpoint, length):
+    final = bytearray()
+    while length > 0:
+        chunk_size = min(16384, length)
+        data = bytearray(chunk_size)
+        try:
+            tx = dev.write(endpoint | 0x80, data)
+            final.extend(data[:tx])
+            length -= tx
+        except usb.core.USBError as e:
+            print("QUsbDevice: failed write")
+            return bytearray()
+    return final
+
 def scanUSBDevices():
     devices = usb.core.find(find_all=True)
 
@@ -60,12 +78,14 @@ def deviceName():
     return bytes_name.decode('latin-1')
 
 def open():
+    global dev 
+    global mask
     # init random mask
     random.seed(int(time.time() * 1000) % 1000)
     mask = bytearray(random.getrandbits(8) for _ in range(307200))
 
     # seach USB-Device
-    global dev 
+    
     dev = usb.core.find(idVendor=0x04c5, idProduct=0x1084)
     print(type(dev))
     if dev is None:
@@ -125,8 +145,116 @@ def open():
     return True
 
 def start():
-    True
+    global scan_first
+    # switch on light
+    data = dev.ctrl_transfer(0xc0, 0x27, 0x07, 1, 8) # returns 2707000000000000
+    data = dev.ctrl_transfer(0xc0, 0x27, 0x08, 1, 8) # returns 2708000000000000
+    data = dev.ctrl_transfer(0xc0, 0x27, 0x00, 1, 6) # returns 270000280000
+    scan_first = True
+
+def stop():
+    # stop light?
+	data = dev.ctrl_transfer(0xc0, 0x27, 0x07, 0, 8) # returns ?
+	data = dev.ctrl_transfer(0xc0, 0x27, 0x08, 0, 8) # returns ?
+	data = dev.ctrl_transfer(0xc0, 0x27, 0x00, 0, 6) # returns ?
+	data = dev.ctrl_transfer(0xc0, 0x45, 0, 0, 3)    #returns 450100
+     
+def bufToImage(buf, w, h):
+    # Erstelle ein leeres Bild mit der Größe w x h und 8-Bit Graustufen
+    res = np.zeros((h, w), dtype=np.uint8)
+
+    # Setze die Pixelwerte basierend auf dem buf
+    for y in range(h):
+        for x in range(w):
+            res[y, x] = buf[y * w + x]
+
+    # Optional: Konvertiere das Bild in ein 256-Farben-Bild (Indexed)
+    # OpenCV unterstützt kein Indexed8 direkt, aber wir können eine Graustufen-Darstellung verwenden
+    
+    # # Beispielaufruf
+    # w, h = 100, 100  # Breite und Höhe des Bildes
+    # buf = np.random.randint(0, 256, size=(h * w), dtype=np.uint8)  # Beispiel-Puffer mit zufälligen Werten
+    # image = create_image(w, h, buf)
+
+    # # Zeige das Bild an (optional)
+    # cv2.imshow('Image', image)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+    return res
+
+def capture_large():
+    global scan_first
+    res = []
+    print("Capture!")
+    data = dev.ctrl_transfer(0xc0, 0x4e, 0, 0, 3)           #returns 4e0100
+    data = dev.ctrl_transfer(0xc0, 0x4e, 1, 0, 3)           #returns 4e0100
+    data = dev.ctrl_transfer(0xc0, 0x4e, 2, 0, 3)           #returns 4e0100
+    data = dev.ctrl_transfer(0xc0, 0x4e, 3, 0, 3)           #returns 4e0100
+    data = dev.ctrl_transfer(0xc0, 0x46, 0x5d0, 0, 3)       #returns 460100
+    data = dev.ctrl_transfer(0xc0, 0x47, 0x10, 0, 3)        #returns 470100
+    data = dev.ctrl_transfer(0xc0, 0x49, 0x100, 0, 3)       #returns 490100
+    data = dev.ctrl_transfer(0xc0, 0x4a, 0x78, 240, 5)      #returns 4a01005802 - image size related?
+    data = dev.ctrl_transfer(0xc0, 0x46, 0xc8, 3, 3)        #returns 460100
+    data = dev.ctrl_transfer(0xc0, 0x47, 0x10, 3, 3)        #returns 470100
+    data = dev.ctrl_transfer(0xc0, 0x49, 0x100, 3, 3)       #returns 490100
+    data = dev.ctrl_transfer(0xc0, 0x42, 0x100, 2, 3)       #returns 420100
+    data = dev.ctrl_transfer(0xc0, 0x43, 0, 0, 3)           #returns 430100
+    data = dev.ctrl_transfer(0xc0, 0x4a, 0, 480, 5)         #returns 4a0100b004 - image height?
+    
+    print("Capture 1")
+    data = dev.ctrl_transfer(0xc0, 0x44, 0, 0, 6)           #returns 440100b00400
+    dat = bulk_receive(2,307200)                            #vein data, 640x480
+    for i in range(240 * 640):
+        dat[i + 120 * 640] ^= mask[i]
+    res.append(bufToImage(dat, 640, 480))
+
+    print("Capture 2")
+    data = dev.ctrl_transfer(0xc0, 0x44, 0, 1, 6)           #returns 440100b00400
+    dat = bulk_receive(2,307200)                            #normal picture
+    res.append(bufToImage(dat, 640, 480))
+
+    print("Capture 3")
+    data = dev.ctrl_transfer(0xc0, 0x4d, 0x78, 240, 5)      #returns 4d01005802
+    data = dev.ctrl_transfer(0xc0, 0x44, 3, 2, 6)           #returns 440100580200
+    dat = bulk_receive(2,153600)                            #"4 dots"
+    res.append(bufToImage(dat, 640, 240))
+
+    #back to scan mode
+    data = dev.ctrl_transfer(0xc0, 0x27, 7, 1, 8)           #returns 2707000000000000
+    data = dev.ctrl_transfer(0xc0, 0x27, 8, 1, 8)           #returns 2708000000000000
+    data = dev.ctrl_transfer(0xc0, 0x27, 0, 1, 6)           #returns 270000280000
+    scan_first = True
+    
+    return res
+
+def do_detect():
+    global scan_first
+    val1 = dev.ctrl_transfer(0xc0, 0x4d, 0x78, 240, 5)      #returns 4d01005802
+    val2 = dev.ctrl_transfer(0xc0, 0x58, 0xffce if scan_first else 0, 0xf0f, 56)    #returns 5801000000000808080808090809090808080809080908090808090807080808080808080808080909080908080908080808080808080800
+    scan_first = False
+    print(f"CHECK [{' '.join(format(byte, '02x') for byte in val1)}] [{' '.join(format(byte, '02x') for byte in val2)}]")
+    
+    d = [0] * 4
+    for i in range(4):
+        d[i] = val2[2 + i] 
+
+    print(f"DIST VALUE={d[0], d[1], d[2], d[3]}")
+    
+    #wie soll das ghen?
+    ok = True
+    # for i in range(4):
+    #     if d[i] < 40 or d[i] > 50:
+    #         ok = False
+    #         break
+
+    if ok:
+        list_of_images = capture_large()  
+        cv2.imwrite("capture_1.png", list_of_images[0])
+        cv2.imwrite("capture_2.png", list_of_images[1])
+        cv2.imwrite("capture_3.png", list_of_images[2])
 
 if __name__ == "__main__":
     open()
     start()
+    do_detect()
+    stop()
