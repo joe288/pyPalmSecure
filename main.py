@@ -1,3 +1,4 @@
+import os
 import usb.core
 import usb.util
 import random
@@ -42,11 +43,10 @@ def bulk_receive(endpoint, length):
     final = bytearray()
     while length > 0:
         chunk_size = min(16384, length)
-        data = bytearray(chunk_size)
         try:
-            tx = dev.write(endpoint | 0x80, data)
-            final.extend(data[:tx])
-            length -= tx
+            data = dev.read(endpoint | 0x80, chunk_size)
+            final.extend(data[:chunk_size])
+            length -= chunk_size
         except usb.core.USBError as e:
             print("QUsbDevice: failed write")
             return bytearray()
@@ -77,7 +77,7 @@ def deviceName():
   
     return bytes_name.decode('latin-1')
 
-def open():
+def openPS():
     global dev 
     global mask
     # init random mask
@@ -176,8 +176,8 @@ def bufToImage(buf, w, h):
     # buf = np.random.randint(0, 256, size=(h * w), dtype=np.uint8)  # Beispiel-Puffer mit zufälligen Werten
     # image = create_image(w, h, buf)
 
-    # # Zeige das Bild an (optional)
-    # cv2.imshow('Image', image)
+    # Zeige das Bild an (optional)
+    # cv2.imshow('Image', res)
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
     return res
@@ -198,7 +198,7 @@ def capture_large():
     data = dev.ctrl_transfer(0xc0, 0x47, 0x10, 3, 3)        #returns 470100
     data = dev.ctrl_transfer(0xc0, 0x49, 0x100, 3, 3)       #returns 490100
     data = dev.ctrl_transfer(0xc0, 0x42, 0x100, 2, 3)       #returns 420100
-    data = dev.ctrl_transfer(0xc0, 0x43, 0, 0, 3)           #returns 430100
+    data = dev.ctrl_transfer(0xc0, 0x43, 0, 0, 3)           #returns 430100       take picture
     data = dev.ctrl_transfer(0xc0, 0x4a, 0, 480, 5)         #returns 4a0100b004 - image height?
     
     print("Capture 1")
@@ -229,32 +229,38 @@ def capture_large():
 
 def do_detect():
     global scan_first
+    ok = False
     val1 = dev.ctrl_transfer(0xc0, 0x4d, 0x78, 240, 5)      #returns 4d01005802
-    val2 = dev.ctrl_transfer(0xc0, 0x58, 0xffce if scan_first else 0, 0xf0f, 56)    #returns 5801000000000808080808090809090808080809080908090808090807080808080808080808080909080908080908080808080808080800
-    scan_first = False
-    print(f"CHECK [{' '.join(format(byte, '02x') for byte in val1)}] [{' '.join(format(byte, '02x') for byte in val2)}]")
     
-    d = [0] * 4
-    for i in range(4):
-        d[i] = val2[2 + i] 
+    while ok == False:
+        val2 = dev.ctrl_transfer(0xc0, 0x58, 0xffce if scan_first else 0, 0xf0f, 56)    #returns 5801000000000808080808090809090808080809080908090808090807080808080808080808080909080908080908080808080808080800
+        scan_first = False
+        # print(f"CHECK [{' '.join(format(byte, '02x') for byte in val1)}] [{' '.join(format(byte, '02x') for byte in val2)}]")
 
-    print(f"DIST VALUE={d[0], d[1], d[2], d[3]}")
-    
-    #wie soll das ghen?
-    ok = True
-    # for i in range(4):
-    #     if d[i] < 40 or d[i] > 50:
-    #         ok = False
-    #         break
+        d = [0] * 4
+        for i in range(4):
+            d[i] = val2[2 + i] 
 
-    if ok:
-        list_of_images = capture_large()  
-        cv2.imwrite("capture_1.png", list_of_images[0])
-        cv2.imwrite("capture_2.png", list_of_images[1])
-        cv2.imwrite("capture_3.png", list_of_images[2])
+        print(f"DIST VALUE={d[0], d[1], d[2], d[3]}")
+
+        if all(40 < wert < 50 for wert in d):
+            ok = True
+
+        if ok:
+            list_of_images = capture_large()  
+            cv2.imwrite("capture_1.png", list_of_images[0])
+            cv2.imwrite("capture_2.png", list_of_images[1])
+            cv2.imwrite("capture_3.png", list_of_images[2])
 
 if __name__ == "__main__":
-    open()
+    ordner_pfad = os.getcwd()
+
+    for datei in os.listdir(ordner_pfad):
+        if 'capture' in datei:
+            bild_pfad = os.path.join(ordner_pfad, datei)  # Vollständigen Pfad erstellen
+            os.remove(bild_pfad)  # Bild löschen
+
+    openPS()
     start()
     do_detect()
     stop()
