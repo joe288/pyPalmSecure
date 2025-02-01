@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-debug = 10
+debug = 0
 
 def findContours(thresholded):
     # Find the largest contours in the thresholded image
@@ -77,9 +77,8 @@ def createSquere(first_defect_far,third_defect_far,midpoint):
     return translated_square_vertices + translation_vector, perpendicular, length,
 
 
-def main():
+def main(image):
     # Load image
-    image = cv2.imread("capture_1.png", cv2.IMREAD_GRAYSCALE)
     image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
     # cropped_image = image[:, :image.shape[1] - 120]  # crop right side
@@ -141,8 +140,8 @@ def main():
         # Perform a perspective transformation to rectify the rotated square to a rectangle
         transform_matrix = cv2.getPerspectiveTransform(translated_along_perpendicular, rectified_order)
         rectified_image = cv2.warpPerspective(image, transform_matrix, (length, length))
-        return rectified_image
+        return cv2.rotate(rectified_image, cv2.ROTATE_90_CLOCKWISE)
 
 
 if __name__ == "__main__":
-    cv2.imwrite("roi.jpg",main())
+    cv2.imwrite("roi.jpg",main(cv2.imread("capture_1.png", cv2.IMREAD_GRAYSCALE)))
