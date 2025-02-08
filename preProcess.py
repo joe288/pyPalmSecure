@@ -4,9 +4,9 @@ import cv2
 import numpy as np
 
 # Konstanten
-THRESHOLD = 180
-BRIGHT = 1.8  # Beispielwert, anpassen nach Bedarf
-DARK = 0.0    # Beispielwert, anpassen nach Bedarf
+THRESHOLD = 140
+BRIGHT = 1.10  # Beispielwert, anpassen nach Bedarf
+DARK = 0.6    # Beispielwert, anpassen nach Bedarf
 
 # Hauptfunktion
 def main(img):
@@ -55,4 +55,92 @@ def main(img):
     return result
 
 if __name__ == "__main__":
-     cv2.imwrite("preProcess.jpg",main(cv2.imread("capture_1.png", cv2.IMREAD_GRAYSCALE)))
+    import tkinter as tk
+    from PIL import Image, ImageTk
+     # Funktion zum Erstellen der GUI
+    def create_window(path):
+        # Hauptfenster erstellen
+        root = tk.Tk()
+        root.title("Bildanzeige mit Schieberegler")
+
+        # Bild laden
+        original_image = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+
+        # Funktion, die beim Bewegen des Schiebereglers aufgerufen wird
+        def on_slider1_change(value):
+            global THRESHOLD
+            # Den Wert des Schiebereglers in eine Ganzzahl umwandeln
+            THRESHOLD = int(value)
+            # Bild skalieren
+            processd_image = main(original_image)
+            photo = ImageTk.PhotoImage(image=Image.fromarray(processd_image))
+
+            # Bild im Label aktualisieren
+            label.config(image=photo)
+            label.image = photo  # Referenz speichern, um Garbage Collection zu vermeiden
+
+        # Funktion, die beim Bewegen des Schiebereglers aufgerufen wird
+        def on_slider2_change(value):
+            global BRIGHT
+            # Den Wert des Schiebereglers in eine Ganzzahl umwandeln
+            BRIGHT = float(value)/10
+            # Bild skalieren
+            processd_image = main(original_image)
+            photo = ImageTk.PhotoImage(image=Image.fromarray(processd_image))
+
+            # Bild im Label aktualisieren
+            label.config(image=photo)
+            label.image = photo  # Referenz speichern, um Garbage Collection zu vermeiden
+
+        # Funktion, die beim Bewegen des Schiebereglers aufgerufen wird
+        def on_slider3_change(value):
+            global DARK
+            # Den Wert des Schiebereglers in eine Ganzzahl umwandeln
+            DARK = float(value)/10
+            # Bild skalieren
+            processd_image = main(original_image)
+            photo = ImageTk.PhotoImage(image=Image.fromarray(processd_image))
+
+            # Bild im Label aktualisieren
+            label.config(image=photo)
+            label.image = photo  # Referenz speichern, um Garbage Collection zu vermeiden
+
+        # Label erstellen, um das Bild anzuzeigen
+        label = tk.Label(root)
+        label.pack()
+
+        # Beschriftung für den Schieberegler
+        threshold_label = tk.Label(root, text="Threshold")
+        threshold_label.pack()
+
+        # Schieberegler erstellen
+        slider1 = tk.Scale(root, from_=1, to=200, orient=tk.HORIZONTAL, command=on_slider1_change)
+        slider1.pack()
+
+         # Beschriftung für den Schieberegler
+        bright_label = tk.Label(root, text="BRIGHT")
+        bright_label.pack()
+
+        # Schieberegler erstellen
+        slider2 = tk.Scale(root, from_=0, to=20, orient=tk.HORIZONTAL, command=on_slider2_change)
+        slider2.pack()
+
+         # Beschriftung für den Schieberegler
+        dark_label = tk.Label(root, text="DARK")
+        dark_label.pack()
+
+        # Schieberegler erstellen
+        slider3 = tk.Scale(root, from_=0, to=20, orient=tk.HORIZONTAL, command=on_slider3_change)
+        slider3.pack()
+
+        # Initiales Bild anzeigen
+        on_slider1_change(slider2.get())
+
+        # Fenster starten
+        root.mainloop()
+
+    # Funktion aufrufen
+    # create_window("capture_1.png")
+    create_window("processdImages\\roi.jpg")
+    #  cv2.imwrite("preProcess.jpg",main(cv2.imread("capture_1.png", cv2.IMREAD_GRAYSCALE)))
+    # cv2.imwrite("preProcess.jpg",main(cv2.imread("processdImages\\roi.jpg", cv2.IMREAD_GRAYSCALE)))

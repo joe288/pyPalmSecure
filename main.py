@@ -1,5 +1,6 @@
 import os
 import cv2
+import time
 from pyPalmSecure import palmScan
 import roi
 import preProcess
@@ -27,6 +28,8 @@ if __name__ == "__main__":
     removeAllImages(os.path.join(ordner_pfad,"processdImages"),'')
     # caputure()
     
+    start_time = time.time()
+
     picture = os.path.join(ordner_pfad,"capture_1.png")
     image = cv2.imread(picture, cv2.IMREAD_GRAYSCALE)
     image = roi.main(image)
@@ -35,5 +38,11 @@ if __name__ == "__main__":
     cv2.imwrite( os.path.join(ordner_pfad,"processdImages","preProcess.jpg"),image)
     image = postProcess.skel(image)
     cv2.imwrite( os.path.join(ordner_pfad,"processdImages","postProcess.jpg"),image)
-    image = filters.main(image)
+    image = filters.main(postProcess.invert(image))
     cv2.imwrite( os.path.join(ordner_pfad,"processdImages","filter.jpg"),image)
+
+    end_time = time.time()
+
+    # Laufzeit berechnen
+    laufzeit = end_time - start_time
+    print(f"Laufzeit: {laufzeit} Sekunden")

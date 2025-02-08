@@ -55,7 +55,7 @@ def skel(img):
     
     skel = thresh(skel)
     # cv2.imwrite("postProcess1.jpg",skel)
-    skel = invert(skel)
+    # skel = invert(skel)
     # cv2.imwrite("postProcess2.jpg",skel)
     return skel
 # threshold to make the veins more visible
