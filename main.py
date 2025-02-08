@@ -9,11 +9,15 @@ import filters
 
 ps = palmScan()
 
-def caputure():
+def startCapture():
     ps.open()
     ps.start()
-    ps.do_detect()
+
+def stopCapture():
     ps.stop()
+
+def caputure():
+    return ps.do_detect()
 
 def removeAllImages(ordner_pfad, tag):
     for datei in os.listdir(ordner_pfad):
@@ -26,12 +30,17 @@ if __name__ == "__main__":
     
     # removeAllCaptures(ordner_pfad,'capture')
     removeAllImages(os.path.join(ordner_pfad,"processdImages"),'')
-    # caputure()
+    
+    startCapture()
+    image = caputure()
+    stopCapture()
     
     start_time = time.time()
+    
+    if not "image" in locals():
+        picture = os.path.join(ordner_pfad,"capture_1.png")
+        image = cv2.imread(picture, cv2.IMREAD_GRAYSCALE)
 
-    picture = os.path.join(ordner_pfad,"capture_1.png")
-    image = cv2.imread(picture, cv2.IMREAD_GRAYSCALE)
     image = roi.main(image)
     cv2.imwrite( os.path.join(ordner_pfad,"processdImages","roi.jpg"),image)
     image = preProcess.main(image)

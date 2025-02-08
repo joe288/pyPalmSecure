@@ -274,8 +274,8 @@ class palmScan:
             if ok:
                 list_of_images = self.__captureLarge()  
                 # list_of_images = captureSmall()
-                cv2.imwrite("capture_1.png", list_of_images[0])
-                # cv2.imwrite("capture_2.png", list_of_images[1])
-                # cv2.imwrite("capture_3.png", list_of_images[2])
+                # cv2.imwrite("capture_1.png", list_of_images[0])
+                ## cv2.imwrite("capture_2.png", list_of_images[1])
+                ## cv2.imwrite("capture_3.png", list_of_images[2])
                 return list_of_images[0]
 
