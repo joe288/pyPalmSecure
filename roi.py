@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import math
 
 debug = 0
 
@@ -16,8 +17,30 @@ def findDefects(largest_contour):
     # Sort defects based on depth
     return sorted(defects, key=lambda x: x[0, 3], reverse=True)
 
+def calculateDistanceLength(pointA, pointB):
+    x1, y1 = pointA
+    x2, y2 = pointB
+    distance = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+    return distance
+
+def findFingers(largest_contour,defects):
+    leftHand = True
+    far_points = [tuple(largest_contour[defects[i][0][2]][0]) for i in range(4)]
+    far_points = sorted(far_points, key=lambda point: point[1])  # Sort by y-coordinate
+
+    lenthPoint_0_1 = calculateDistanceLength(far_points[0],far_points[1])       
+    lenthPoint_2_3 = calculateDistanceLength(far_points[2],far_points[3])
+    
+    if lenthPoint_0_1 > lenthPoint_2_3:                                                         #right hand side
+        far_points = far_points = sorted(far_points, reverse=True ,key=lambda point: point[1])
+        leftHand = False
+
+    return far_points, leftHand
+
 def createSquere(first_defect_far,third_defect_far,midpoint):
     sizeOffset = 150
+    posOffset = 7.5
+    rotOffset = 0
     # Calculate the direction vector (dx, dy) of the line
     dx = third_defect_far[0] - first_defect_far[0]
     dy = third_defect_far[1] - first_defect_far[1]
@@ -27,6 +50,11 @@ def createSquere(first_defect_far,third_defect_far,midpoint):
 
     dx /= length
     dy /= length
+    if dy < 0:
+        dy = abs(dy)
+        dx = abs(dx)
+        rotOffset = 90
+        posOffset = 4
     
     # Calculate the coordinates of the perpendicular line
     perpendicular = [int(midpoint[0] + 50 * dy),int(midpoint[1] - 50 * dx)]  # X,Y
@@ -48,6 +76,7 @@ def createSquere(first_defect_far,third_defect_far,midpoint):
 
     # Calculate the angle of rotation
     angle = np.arctan2(-dy, dx) * 180 / np.pi
+    angle = angle + rotOffset
 
     # Create a rotation matrix
     rotation_matrix = cv2.getRotationMatrix2D(midpoint, angle, scale=1)
@@ -71,7 +100,7 @@ def createSquere(first_defect_far,third_defect_far,midpoint):
     d_perpendicular[1] /= length_perpendicular 
 
     # Calculate the translation vector along the perpendicular line
-    translation_vector = (int((0)* d_perpendicular[0]), int((50 - (sizeOffset*7.5)) * d_perpendicular[1]))
+    translation_vector = (int((0)* d_perpendicular[0]), int((50 - (sizeOffset*posOffset)) * d_perpendicular[1]))
 
     # Translate the rotated and aligned square vertices
     return translated_square_vertices + translation_vector, perpendicular, length,
@@ -100,8 +129,7 @@ def main(image):
     # Choose the far points with the lowest and third lowest y-coordinates
     if len(defects) >= 4:
 
-        far_points = [tuple(largest_contour[defects[i][0][2]][0]) for i in range(4)]
-        far_points = sorted(far_points, key=lambda point: point[1])  # Sort by y-coordinate
+        far_points, leftHand = findFingers(largest_contour,defects)
 
         if debug >= 2:
             #paint defekt
@@ -140,7 +168,11 @@ def main(image):
         # Perform a perspective transformation to rectify the rotated square to a rectangle
         transform_matrix = cv2.getPerspectiveTransform(translated_along_perpendicular, rectified_order)
         rectified_image = cv2.warpPerspective(image, transform_matrix, (length, length))
-        return cv2.rotate(rectified_image, cv2.ROTATE_90_CLOCKWISE)
+ 
+        if leftHand:
+            rectified_image = cv2.rotate(rectified_image, cv2.ROTATE_90_CLOCKWISE)
+
+        return rectified_image
 
 
 if __name__ == "__main__":
