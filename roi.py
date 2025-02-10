@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import math
 
-debug = 0
+debug = 10
 
 def findContours(thresholded):
     # Find the largest contours in the thresholded image
@@ -86,7 +86,6 @@ def createSquere(first_defect_far,third_defect_far,midpoint):
 
     # Calculate the new starting point for the square
     start_point = (first_defect_far[0] - rotated_square_vertices[0][0], first_defect_far[1] - rotated_square_vertices[0][1])
-    # start_point = (int(start_point[0]- (sizeOffset/3)), int(start_point[1]- (sizeOffset/1.7)))
 
     # Translate the rotated square to the new starting point
     translated_square_vertices = rotated_square_vertices + start_point
@@ -112,8 +111,8 @@ def main(image):
 
     # cropped_image = image[:, :image.shape[1] - 120]  # crop right side
     blurred = cv2.GaussianBlur(image, (5, 5), 0)  # gaussian blur
-    _, thresholded = cv2.threshold(blurred, 50, 255, cv2.THRESH_BINARY)  # initial threshold
-
+    _, thresholded = cv2.threshold(blurred, 75, 255, cv2.THRESH_BINARY)  # initial threshold
+    # cv2.imwrite("roi.jpg",thresholded)
     largest_contour = findContours(thresholded)
 
     if debug >=1:
@@ -176,4 +175,4 @@ def main(image):
 
 
 if __name__ == "__main__":
-    cv2.imwrite("roi.jpg",main(cv2.imread("capture_1.png", cv2.IMREAD_GRAYSCALE)))
+    cv2.imwrite("roi.jpg",main(cv2.imread("samples//capture_7.png", cv2.IMREAD_GRAYSCALE)))
