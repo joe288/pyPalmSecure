@@ -158,7 +158,7 @@ class palmScan:
 
         # Durch die gefundenen Geräte iterieren und Informationen ausgeben
         for dev in devices:
-            print(f"Gerät: {dev.idVendor:04x}:{dev.idProduct:04x}")
+            print(f"  Gerät: {dev.idVendor:04x}:{dev.idProduct:04x}")
             print(f"  Hersteller: {usb.util.get_string(dev, dev.iManufacturer)}")
             print(f"  Produkt: {usb.util.get_string(dev, dev.iProduct)}")
             print(f"  Seriennummer: {usb.util.get_string(dev, dev.iSerialNumber)}")
@@ -184,9 +184,12 @@ class palmScan:
         self.mask = bytearray(random.getrandbits(8) for _ in range(307200))
 
         # seach USB-Device
-        
-        self.dev = usb.core.find(idVendor=0x04c5, idProduct=0x1084)
-        print(type(self.dev))
+        try:
+            self.dev = usb.core.find(idVendor=0x04c5, idProduct=0x1084)
+            print(type(self.dev))
+        except:
+            self.dev = None
+            
         if self.dev is None:
             raise ValueError("no device found")
 
