@@ -39,8 +39,8 @@ def findFingers(largest_contour,defects):
 
 def createSquere(first_defect_far,third_defect_far,midpoint):
     sizeOffset = 150
-    posOffset = 7.5
-    rotOffset = 0
+    sizePic = 300
+
     # Calculate the direction vector (dx, dy) of the line
     dx = third_defect_far[0] - first_defect_far[0]
     dy = third_defect_far[1] - first_defect_far[1]
@@ -50,25 +50,29 @@ def createSquere(first_defect_far,third_defect_far,midpoint):
 
     dx /= length
     dy /= length
-    if dy < 0:
+    if dy < 0:      ## ist das unterscheidung rechts links?
         dy = abs(dy)
         dx = abs(dx)
         rotOffset = 90
         posOffset = 4
+    else:
+        posOffset = 32
+        rotOffset = 0
+        
     
     # Calculate the coordinates of the perpendicular line
     perpendicular = [int(midpoint[0] + 50 * dy),int(midpoint[1] - 50 * dx)]  # X,Y
 
     # Calculate the length of the side of the ROI square
-    length = int(np.sqrt((third_defect_far[0] - first_defect_far[0])**2 + (third_defect_far[1] - first_defect_far[1])**2))
-    length += sizeOffset
+    # length = int(np.sqrt((third_defect_far[0] - first_defect_far[0])**2 + (third_defect_far[1] - first_defect_far[1])**2))
+    # length += sizeOffset
 
     # Calculate the coordinates of the square vertices
     square_vertices = [
         (perpendicular[0] , perpendicular[1]),
-        (perpendicular[0] , perpendicular[1] - length),
-        (perpendicular[0] + length , perpendicular[1] - length),
-        (perpendicular[0] + length, perpendicular[1])
+        (perpendicular[0] , perpendicular[1] - sizePic),
+        (perpendicular[0] + sizePic , perpendicular[1] - sizePic),
+        (perpendicular[0] + sizePic, perpendicular[1])
     ]
 
     # Ensure that midpoint contains integers
@@ -102,7 +106,7 @@ def createSquere(first_defect_far,third_defect_far,midpoint):
     translation_vector = (int((0)* d_perpendicular[0]), int((50 - (sizeOffset*posOffset)) * d_perpendicular[1]))
 
     # Translate the rotated and aligned square vertices
-    return translated_square_vertices + translation_vector, perpendicular, length,
+    return translated_square_vertices + translation_vector, perpendicular, sizePic,
 
 
 def main(image):
@@ -175,4 +179,4 @@ def main(image):
 
 
 if __name__ == "__main__":
-    cv2.imwrite("roi.jpg",main(cv2.imread("samples//capture_7.png", cv2.IMREAD_GRAYSCALE)))
+    cv2.imwrite("roi2.jpg",main(cv2.imread("samples//capture_2.png", cv2.IMREAD_GRAYSCALE)))
