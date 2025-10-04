@@ -37,77 +37,45 @@ def findFingers(largest_contour,defects):
 
     return far_points, leftHand
 
-def createSquere(first_defect_far,third_defect_far,midpoint):
-    sizeOffset = 150
-    sizePic = 300
-
-    # Calculate the direction vector (dx, dy) of the line
-    dx = third_defect_far[0] - first_defect_far[0]
-    dy = third_defect_far[1] - first_defect_far[1]
-
-    # Normalize the direction vector
-    length = np.sqrt(dx**2 + dy**2)
-
-    dx /= length
-    dy /= length
-    if dy < 0:      ## ist das unterscheidung rechts links?
-        dy = abs(dy)
-        dx = abs(dx)
-        rotOffset = 90
-        posOffset = 4
-    else:
-        posOffset = 32
-        rotOffset = 0
-        
+def createSquere(far_Point):
+    sizePic = 330
     
-    # Calculate the coordinates of the perpendicular line
-    perpendicular = [int(midpoint[0] + 50 * dy),int(midpoint[1] - 50 * dx)]  # X,Y
+    # Punkte entpacken
+    p0, p1, p2, p3 = far_Point
+    
+   # Richtung von p0 -> p2 (linke Kante)
+    dx = p2[0] - p0[0]
+    dy = p2[1] - p0[1]
+    dir_vec = np.array([dx, dy], dtype=np.float32)
+    dir_vec /= np.linalg.norm(dir_vec)
 
-    # Calculate the length of the side of the ROI square
-    # length = int(np.sqrt((third_defect_far[0] - first_defect_far[0])**2 + (third_defect_far[1] - first_defect_far[1])**2))
-    # length += sizeOffset
+    offset_x = sizePic/2 - 30
+    
+    # Senkrechter Vektor (für obere Kante)
+    if dy < 0: # linke hand
+        dir_vec = -dir_vec  #horizontal spiegeln  
+        offset_y = -(sizePic/2) +20
+    else: 
+        offset_y = -(sizePic/2) -20
 
-    # Calculate the coordinates of the square vertices
-    square_vertices = [
-        (perpendicular[0] , perpendicular[1]),
-        (perpendicular[0] , perpendicular[1] - sizePic),
-        (perpendicular[0] + sizePic , perpendicular[1] - sizePic),
-        (perpendicular[0] + sizePic, perpendicular[1])
-    ]
+    perp = np.array([dir_vec[1], -dir_vec[0]], dtype=np.float32)
+    
+       # Mittelpunkt von P0–P2
+    p0 = np.array(p0, dtype=np.float32)
+    p2 = np.array(p2, dtype=np.float32)
+    mid = (p0 + p2) / 2.0
+    
+    # Offset in lokalen Achsen anwenden
+    mid = mid + offset_x * perp + offset_y * dir_vec
 
-    # Ensure that midpoint contains integers
-    midpoint = (int(midpoint[0]), int(midpoint[1]))
-
-    # Calculate the angle of rotation
-    angle = np.arctan2(-dy, dx) * 180 / np.pi
-    angle = angle + rotOffset
-
-    # Create a rotation matrix
-    rotation_matrix = cv2.getRotationMatrix2D(midpoint, angle, scale=1)
-
-    # Apply the rotation to the square vertices
-    rotated_square_vertices = cv2.transform(np.array([square_vertices], dtype=np.float32), rotation_matrix).squeeze().astype(np.int32)
-
-    # Calculate the new starting point for the square
-    start_point = (first_defect_far[0] - rotated_square_vertices[0][0], first_defect_far[1] - rotated_square_vertices[0][1])
-
-    # Translate the rotated square to the new starting point
-    translated_square_vertices = rotated_square_vertices + start_point
-
-    # Calculate the direction vector (dx_perpendicular, dy_perpendicular) of the perpendicular line
-    d_perpendicular = [perpendicular[0] - midpoint[0], perpendicular[1] - midpoint[1]]  # X,Y
-
-    # Normalize the direction vector
-    length_perpendicular = np.sqrt(d_perpendicular[0]**2 + d_perpendicular[1]**2)
-    d_perpendicular[0] /= length_perpendicular 
-    d_perpendicular[1] /= length_perpendicular 
-
-    # Calculate the translation vector along the perpendicular line
-    translation_vector = (int((0)* d_perpendicular[0]), int((50 - (sizeOffset*posOffset)) * d_perpendicular[1]))
-
-    # Translate the rotated and aligned square vertices
-    return translated_square_vertices + translation_vector, perpendicular, sizePic,
-
+    # Rechteck-Ecken (um den Mittelpunkt herum)
+    top_left     = mid - (sizePic/2) * perp
+    top_right    = mid + (sizePic/2) * perp
+    bottom_right = top_right + sizePic * dir_vec
+    bottom_left  = top_left + sizePic * dir_vec
+    
+    rect = np.array([top_left, top_right, bottom_right, bottom_left], dtype=np.int32)
+    return rect, sizePic
 
 def main(image):
     # Load image
@@ -143,18 +111,12 @@ def main(image):
             cv2.circle(image_with_contours_points, far_points[3], radius=5, color=(255, 0, 0), thickness=-1)  # Blauer Punkt
             cv2.imwrite("roi.jpg",image_with_contours_points)
 
-        first_defect_far, third_defect_far = far_points[0], far_points[2]
-
-        # Calculate the midpoint of the line
-        midpoint = ((first_defect_far[0] + third_defect_far[0]) // 2, (first_defect_far[1] + third_defect_far[1]) // 2)
-        
-        translated_along_perpendicular, perpendicular, length = createSquere(first_defect_far, third_defect_far, midpoint)
-        
         if debug >= 3:
-            cv2.line(image_with_contours_points, first_defect_far, third_defect_far, color=(0, 0, 255), thickness=2)            # Rote Linie
-            # cv2.line(image_with_contours_points, midpoint, perpendicular, color=(0, 0, 255), thickness=2)                       # Rote Linie
+            cv2.line(image_with_contours_points, far_points[0], far_points[2], color=(0, 0, 255), thickness=2)            # Rote Linie
             cv2.imwrite("roi.jpg",image_with_contours_points)
-    
+          
+        translated_along_perpendicular, length = createSquere(far_points)
+        
         if debug >= 4:
             for i in range(len(translated_along_perpendicular)):
                 nextp = (i + 1) % len(translated_along_perpendicular)                                                        # modulo für den letzten Punkt
@@ -173,10 +135,18 @@ def main(image):
         rectified_image = cv2.warpPerspective(image, transform_matrix, (length, length))
  
         if leftHand:
-            rectified_image = cv2.rotate(rectified_image, cv2.ROTATE_90_CLOCKWISE)
+            rectified_image = cv2.rotate(rectified_image, cv2.ROTATE_180)
 
         return rectified_image
+        # return image_with_contours_points
 
 
 if __name__ == "__main__":
-    cv2.imwrite("roi2.jpg",main(cv2.imread("samples//capture_2.png", cv2.IMREAD_GRAYSCALE)))
+    import os
+
+    folder = "samples"
+    for file in os.listdir(folder):
+        destPath    = os.path.join(folder,file)
+        targetPath  = os.path.join(folder,"roi",file)
+        if os.path.isfile(destPath):
+            cv2.imwrite(targetPath,main(cv2.imread(destPath, cv2.IMREAD_GRAYSCALE)))
